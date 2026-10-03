@@ -290,11 +290,6 @@ export default function Magazzino() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.groupTitle}>{groupTitleOf(group.key)}</Text>
-                    <Text style={styles.groupSub}>
-                      {group.items.length}{" "}
-                      {group.items.length === 1 ? "voce" : "voci"} • {totalQty}{" "}
-                      {totalQty === 1 ? "gomma" : "gomme"}
-                    </Text>
                   </View>
                   <Icon
                     name={isOpen ? "chevron-up" : "chevron-down"}
@@ -797,7 +792,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: "center",
   },
   groupBadgeText: { color: colors.onBrandTertiary, fontWeight: "800", fontSize: 16 },
-  groupTitle: { fontSize: 16, fontWeight: "700", color: colors.onSurface },
+  groupTitle: { fontSize: 19, fontWeight: "700", color: colors.onSurface },
   groupSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
 
   itemsWrap: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
@@ -819,7 +814,7 @@ const useStyles = makeStyles((colors) => ({
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
   },
-  itemSize: { fontSize: 15, fontWeight: "700", color: colors.onSurface },
+  itemSize: { fontSize: 17, fontWeight: "700", color: colors.onSurface },
   itemMetaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -827,13 +822,13 @@ const useStyles = makeStyles((colors) => ({
     marginTop: 4,
     flexWrap: "wrap",
   },
-  itemBrand: { fontSize: 13, color: colors.onSurfaceSecondary, fontWeight: "600" },
+  itemBrand: { fontSize: 15, color: colors.onSurfaceSecondary, fontWeight: "600" },
   seasonChip: {
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: radius.pill,
   },
-  seasonChipText: { fontSize: 11, fontWeight: "700" },
+  seasonChipText: { fontSize: 13, fontWeight: "700" },
 
   qtyBox: {
     flexDirection: "row",
@@ -852,9 +847,9 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: "center",
   },
   qtyValue: {
-    minWidth: 28,
+    minWidth: 32,
     textAlign: "center",
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "800",
     color: colors.onSurface,
   },
