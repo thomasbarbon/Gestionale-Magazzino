@@ -1,0 +1,150 @@
+{
+  "app_name": "GommaGest",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A professional, highly legible, and trustworthy utility interface with an automotive edge, designed to feel at home in a fast-paced workshop.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#F3F4F6",
+    "onSurfaceSecondary": "#374151",
+    "surfaceTertiary": "#E5E7EB",
+    "onSurfaceTertiary": "#4B5563",
+    "surfaceInverse": "#1F2937",
+    "onSurfaceInverse": "#F9FAFB",
+    "brand": "#0A3D73",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#0F4C81",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#FF6B00",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E0E7FF",
+    "onBrandTertiary": "#0A3D73",
+    "success": "#10B981",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#EF4444",
+    "onError": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#D1D5DB",
+    "divider": "#E5E7EB",
+    "info": "#3B82F6",
+    "onInfo": "#FFFFFF",
+    "muted": "#6B7280"
+  },
+  "typography": {
+    "displayFontFamily": "Space Grotesk",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room for readability on tablets. For phones, tighter margins but strict adherence to 44x44pt tap targets for gloved or busy hands.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use on sticky headers above the scrolling inventory lists.",
+      "Use on the bottom tab bar.",
+      "Use on bottom sheet handles/headers for the 'Add Tire' form."
+    ],
+    "dont's": [
+      "Never use on inventory list items or input fields.",
+      "Do not use on heavy data grids."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Dashboard",
+      "purpose": "A quick overview of recent tire movements and workshop activity.",
+      "states": {
+        "loading": "Centered spinner",
+        "empty": "Illustration of a clean, empty garage with 'Nessun movimento recente' text.",
+        "error": "Error message with a retry button"
+      },
+      "layout": "Tablet: Two-column grid with a summary widget on the left and 'Cronologia Movimenti' (History) on the right. Phone: Single column scrolling list of recent history items."
+    },
+    {
+      "name": "Magazzino",
+      "purpose": "The core inventory management screen organized by rim size (Pollici).",
+      "states": {
+        "loading": "Skeleton list mimicking tire entries",
+        "empty": "Empty warehouse cardboard box image (provided in images) with 'Nessuna gomma in magazzino'.",
+        "error": "Error message with a retry button"
+      },
+      "layout": "Tablet: Sidebar/Tabs for Rim Sizes (14\", 15\", 16\", etc.), main pane for the list of tires. Phone: A horizontal scrollable chip row for Rim Sizes pinned under the sticky header, followed by expandable cards for each tire. Each card allows quick +/- quantity modifications."
+    },
+    {
+      "name": "AggiungiPneumatico",
+      "purpose": "Modal or bottom sheet to quickly log incoming or outgoing tires.",
+      "states": {
+        "loading": "Spinner on submit button",
+        "empty": "Form is ready to be filled",
+        "error": "Inline validation text under fields (e.g., missing size)"
+      },
+      "layout": "Opens as a full-screen modal on phone or a centered constrained modal on tablet. Contains clear inputs (Size, Brand Dropdown, Season Dropdown, Quantity)."
+    }
+  ],
+  "images": {
+    "empty_warehouse": {
+      "url": "https://images.unsplash.com/photo-1573376670329-0261ea9fde97?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxlbXB0eSUyMHdhcmVob3VzZSUyMGNhcmRib2FyZCUyMGJveCUyMGlzb2xhdGVkfGVufDB8fHx8MTc5MTA0ODg5OHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Empty warehouse cardboard box"
+    },
+    "brand_michelin": {
+      "url": "https://images.pexels.com/photos/9380947/pexels-photo-9380947.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Michelin Logo reference"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Follow the 1 iOS-Native Clean personality strictly. Keep the UI airy and highly legible. The app will be used by auto mechanics and workshop managers.",
+    "Color exception noted: The user explicitly requested 'blu/arancione automotive' (automotive blue and orange accents). These have been applied to the 'brand' and 'brandSecondary' tokens. Ensure all interactable primary actions use the blue token, and alerts/badges use the orange token.",
+    "Responsive Layout is paramount: Implement adaptive styling (e.g., using `useWindowDimensions`) to switch between a single-column layout on phones and a multi-column/split pane layout on tablets.",
+    "For the 'Magazzino' (Inventory) screen, implement expandable accordion cards. The header of the card should show basic info (Size, Brand), and expanding it reveals the quick +/- quantity controls and season details.",
+    "Tire quantity updates (+/-) should trigger immediate haptic feedback and optimistically update the UI to ensure a fast, 'no-lag' workshop experience.",
+    "Use `Space Grotesk` heavily for numbers (tire sizes, rim dimensions, stock quantities) as its monospace-like structure gives a highly professional data-dashboard feel.",
+    "Ensure 'Stagione' (Season) is color-coded using subtle background chips: e.g., Blue-ish for Winter, Orange-ish for Summer, Neutral for All Season.",
+    "Keep all text and labels in Italian as requested."
+  ],
+  "haptics": {
+    "primary_button": "impactLight",
+    "quantity_increase": "impactLight",
+    "quantity_decrease": "impactLight",
+    "tab_change": "selection",
+    "accordion_expand": "selection",
+    "error_feedback": "notificationError",
+    "success_feedback": "notificationSuccess"
+  }
+}
