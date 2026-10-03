@@ -21,6 +21,7 @@ export type Movement = {
   type: "create" | "add" | "remove" | "delete";
   delta: number;
   quantity_after: number;
+  operator: string | null;
   timestamp: string;
 };
 
@@ -49,20 +50,25 @@ export const api = {
     brand: string;
     season: Tire["season"];
     quantity: number;
+    operator?: string | null;
   }) =>
     fetch(`${BASE}/api/tires`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }).then(j<Tire>),
-  updateQty: (id: string, delta: number) =>
+  updateQty: (id: string, delta: number, operator?: string | null) =>
     fetch(`${BASE}/api/tires/${id}/quantity`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ delta }),
+      body: JSON.stringify({ delta, operator: operator ?? null }),
     }).then(j<Tire>),
-  deleteTire: (id: string) =>
-    fetch(`${BASE}/api/tires/${id}`, { method: "DELETE" }).then(j<{ ok: boolean }>),
+  deleteTire: (id: string, operator?: string | null) => {
+    const q = operator ? `?operator=${encodeURIComponent(operator)}` : "";
+    return fetch(`${BASE}/api/tires/${id}${q}`, { method: "DELETE" }).then(
+      j<{ ok: boolean }>,
+    );
+  },
 };
 
 export const SEASONS: Tire["season"][] = ["All Season", "Invernali", "Estive"];

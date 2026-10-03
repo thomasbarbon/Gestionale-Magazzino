@@ -13,11 +13,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "@react-native-vector-icons/ionicons";
 
 import { api, Movement, Tire } from "@/src/api";
+import { useOperator } from "@/src/operator-context";
 import { useResponsive } from "@/src/responsive";
 import { makeStyles, radius, spacing, useTheme } from "@/src/theme";
-
-const seasonColor = (s: Tire["season"]) =>
-  s === "Invernali" ? "#3B82F6" : s === "Estive" ? "#FF6B00" : "#6B7280";
 
 const movementLabel: Record<Movement["type"], string> = {
   create: "Creato",
@@ -50,12 +48,21 @@ export default function Dashboard() {
   const styles = useStyles();
   const { colors } = useTheme();
   const { isTablet } = useResponsive();
+  const { operator, openEditor } = useOperator();
 
-  const tiresQ = useQuery({ queryKey: ["tires"], queryFn: api.listTires });
-  const mvsQ = useQuery({ queryKey: ["movements"], queryFn: () => api.listMovements(50) });
+  const tiresQ = useQuery({
+    queryKey: ["tires"],
+    queryFn: api.listTires,
+    refetchInterval: 4000,
+  });
+  const mvsQ = useQuery({
+    queryKey: ["movements"],
+    queryFn: () => api.listMovements(50),
+    refetchInterval: 4000,
+  });
 
   const stats = useMemo(() => {
-    const list = tiresQ.data ?? [];
+    const list: Tire[] = tiresQ.data ?? [];
     const totalQty = list.reduce((s, t) => s + t.quantity, 0);
     const uniqueCount = list.length;
     const rims = new Set(list.map((t) => t.rim));
@@ -80,6 +87,20 @@ export default function Dashboard() {
           <Text style={styles.magazzinoBtnText}>Apri Magazzino</Text>
         </Pressable>
       </View>
+
+      <Pressable style={styles.operatorBar} onPress={openEditor} testID="operator-bar">
+        <Icon name="person-circle" size={22} color={colors.brandPrimary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.operatorLabel}>Operatore attivo</Text>
+          <Text style={styles.operatorName} testID="operator-name">
+            {operator}
+          </Text>
+        </View>
+        <View style={styles.operatorEditBtn}>
+          <Icon name="pencil" size={14} color={colors.onBrandPrimary} />
+          <Text style={styles.operatorEditText}>Cambia</Text>
+        </View>
+      </Pressable>
 
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing["2xl"] }}
@@ -109,7 +130,7 @@ export default function Dashboard() {
           />
         </View>
 
-        <View style={[styles.section, isTablet && styles.sectionTablet]}>
+        <View style={styles.section}>
           <Pressable
             style={styles.magazzinoCard}
             onPress={() => router.push("/(tabs)/magazzino")}
@@ -184,18 +205,22 @@ export default function Dashboard() {
                       {item.size} — {item.brand}
                     </Text>
                     <Text style={styles.mvSub} numberOfLines={1}>
-                      {movementLabel[item.type]} • {item.season} • {formatTime(item.timestamp)}
+                      {movementLabel[item.type]} • {item.season} •{" "}
+                      {formatTime(item.timestamp)}
                     </Text>
+                    <View style={styles.mvOperatorRow}>
+                      <Icon name="person-outline" size={11} color={colors.muted} />
+                      <Text style={styles.mvOperatorText} numberOfLines={1}>
+                        {item.operator ?? "—"}
+                      </Text>
+                    </View>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text
                       style={[
                         styles.mvDelta,
                         {
-                          color:
-                            item.delta >= 0
-                              ? colors.success
-                              : colors.error,
+                          color: item.delta >= 0 ? colors.success : colors.error,
                         },
                       ]}
                     >
@@ -264,6 +289,32 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.md,
   },
   magazzinoBtnText: { color: colors.onBrandPrimary, fontWeight: "700", fontSize: 13 },
+
+  operatorBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  operatorLabel: { fontSize: 11, fontWeight: "700", color: colors.muted, textTransform: "uppercase" },
+  operatorName: { fontSize: 15, fontWeight: "700", color: colors.onSurface },
+  operatorEditBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandPrimary,
+  },
+  operatorEditText: { color: colors.onBrandPrimary, fontSize: 11, fontWeight: "700" },
+
   statsRow: { flexDirection: "row", gap: spacing.md, flexWrap: "wrap" },
   statsRowTablet: { gap: spacing.lg },
   statCard: {
@@ -286,7 +337,6 @@ const useStyles = makeStyles((colors) => ({
   statValue: { fontSize: 28, fontWeight: "800", color: colors.onSurface },
   statLabel: { fontSize: 13, color: colors.muted, marginTop: 2 },
   section: { marginTop: spacing.lg },
-  sectionTablet: {},
   magazzinoCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -351,6 +401,13 @@ const useStyles = makeStyles((colors) => ({
   },
   mvTitle: { fontSize: 14, fontWeight: "700", color: colors.onSurface },
   mvSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  mvOperatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  mvOperatorText: { fontSize: 11, color: colors.onSurfaceSecondary, fontWeight: "600" },
   mvDelta: { fontSize: 15, fontWeight: "800" },
   mvAfter: { fontSize: 11, color: colors.muted, marginTop: 2 },
   sep: { height: 1, backgroundColor: colors.divider },

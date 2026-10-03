@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "@react-native-vector-icons/ionicons";
 
 import { api, SEASONS, Tire } from "@/src/api";
+import { formatSize } from "@/src/format";
+import { useOperator } from "@/src/operator-context";
 import { useResponsive } from "@/src/responsive";
 import { makeStyles, radius, spacing, useTheme } from "@/src/theme";
 
@@ -32,16 +34,23 @@ export default function Magazzino() {
   const { colors } = useTheme();
   const qc = useQueryClient();
   const { isTablet } = useResponsive();
+  const { operator } = useOperator();
 
   const [search, setSearch] = useState("");
-  const [selectedRim, setSelectedRim] = useState<number | "all">("all");
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [groupBy, setGroupBy] = useState<"rim" | "brand" | "season">("rim");
+  const [selectedKey, setSelectedKey] = useState<string | "all">("all");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addOpen, setAddOpen] = useState(false);
 
-  const tiresQ = useQuery({ queryKey: ["tires"], queryFn: api.listTires });
+  const tiresQ = useQuery({
+    queryKey: ["tires"],
+    queryFn: api.listTires,
+    refetchInterval: 4000,
+  });
 
   const qtyMut = useMutation({
-    mutationFn: ({ id, delta }: { id: string; delta: number }) => api.updateQty(id, delta),
+    mutationFn: ({ id, delta }: { id: string; delta: number }) =>
+      api.updateQty(id, delta, operator),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tires"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
@@ -49,7 +58,7 @@ export default function Magazzino() {
   });
 
   const delMut = useMutation({
-    mutationFn: (id: string) => api.deleteTire(id),
+    mutationFn: (id: string) => api.deleteTire(id, operator),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tires"] });
       qc.invalidateQueries({ queryKey: ["movements"] });
@@ -70,26 +79,48 @@ export default function Magazzino() {
     });
   }, [tires, search]);
 
+  const groupKeyOf = (t: Tire): string =>
+    groupBy === "rim" ? String(t.rim) : groupBy === "brand" ? t.brand : t.season;
+
+  const groupLabelOf = (key: string): string =>
+    groupBy === "rim" ? `${key}"` : key;
+
+  const groupTitleOf = (key: string): string =>
+    groupBy === "rim"
+      ? `Cerchio ${key}"`
+      : groupBy === "brand"
+        ? key
+        : key;
+
   const grouped = useMemo(() => {
-    const map = new Map<number, Tire[]>();
+    const map = new Map<string, Tire[]>();
     for (const t of filtered) {
-      if (!map.has(t.rim)) map.set(t.rim, []);
-      map.get(t.rim)!.push(t);
+      const k = groupKeyOf(t);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(t);
     }
     return Array.from(map.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([rim, items]) => ({ rim, items }));
-  }, [filtered]);
+      .sort((a, b) => {
+        if (groupBy === "rim") return Number(a[0]) - Number(b[0]);
+        return a[0].localeCompare(b[0], "it");
+      })
+      .map(([key, items]) => ({ key, items }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, groupBy]);
 
-  const allRims = useMemo(() => {
-    const s = new Set(tires.map((t) => t.rim));
-    return Array.from(s).sort((a, b) => a - b);
-  }, [tires]);
+  const allKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of tires) s.add(groupKeyOf(t));
+    const arr = Array.from(s);
+    if (groupBy === "rim") return arr.sort((a, b) => Number(a) - Number(b));
+    return arr.sort((a, b) => a.localeCompare(b, "it"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tires, groupBy]);
 
   const visibleGroups = useMemo(() => {
-    if (selectedRim === "all") return grouped;
-    return grouped.filter((g) => g.rim === selectedRim);
-  }, [grouped, selectedRim]);
+    if (selectedKey === "all") return grouped;
+    return grouped.filter((g) => g.key === selectedKey);
+  }, [grouped, selectedKey]);
 
   const bottomChrome = insets.bottom;
 
@@ -128,6 +159,46 @@ export default function Magazzino() {
           ) : null}
         </View>
 
+        <View style={styles.groupByRow}>
+          <Text style={styles.groupByLabel}>Raggruppa per</Text>
+          <View style={styles.segment}>
+            {(
+              [
+                { k: "rim", label: "Pollici", icon: "disc-outline" },
+                { k: "brand", label: "Marchio", icon: "pricetag-outline" },
+                { k: "season", label: "Stagione", icon: "snow-outline" },
+              ] as const
+            ).map((opt) => {
+              const active = groupBy === opt.k;
+              return (
+                <Pressable
+                  key={opt.k}
+                  style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                  onPress={() => {
+                    setGroupBy(opt.k);
+                    setSelectedKey("all");
+                  }}
+                  testID={`groupby-${opt.k}`}
+                >
+                  <Icon
+                    name={opt.icon as any}
+                    size={14}
+                    color={active ? colors.onBrandPrimary : colors.onSurfaceSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentBtnText,
+                      active && { color: colors.onBrandPrimary },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -136,17 +207,17 @@ export default function Magazzino() {
         >
           <Chip
             label="Tutti"
-            active={selectedRim === "all"}
-            onPress={() => setSelectedRim("all")}
-            testID="chip-rim-all"
+            active={selectedKey === "all"}
+            onPress={() => setSelectedKey("all")}
+            testID={`chip-${groupBy}-all`}
           />
-          {allRims.map((r) => (
+          {allKeys.map((k) => (
             <Chip
-              key={r}
-              label={`${r}"`}
-              active={selectedRim === r}
-              onPress={() => setSelectedRim(r)}
-              testID={`chip-rim-${r}`}
+              key={k}
+              label={groupLabelOf(k)}
+              active={selectedKey === k}
+              onPress={() => setSelectedKey(k)}
+              testID={`chip-${groupBy}-${k}`}
             />
           ))}
         </ScrollView>
@@ -167,28 +238,58 @@ export default function Magazzino() {
       ) : (
         <FlatList
           data={visibleGroups}
-          keyExtractor={(g) => String(g.rim)}
+          keyExtractor={(g) => g.key}
           contentContainerStyle={{
             padding: spacing.lg,
             paddingBottom: bottomChrome + spacing["2xl"],
           }}
           renderItem={({ item: group }) => {
-            const isOpen = expanded[group.rim] ?? true;
+            const isOpen = expanded[group.key] ?? true;
             const totalQty = group.items.reduce((s, t) => s + t.quantity, 0);
+            const badgeText =
+              groupBy === "rim"
+                ? `${group.key}"`
+                : groupBy === "brand"
+                  ? group.key.slice(0, 2).toUpperCase()
+                  : group.key === "All Season"
+                    ? "AS"
+                    : group.key === "Invernali"
+                      ? "IN"
+                      : "ES";
+            const badgeBg =
+              groupBy === "season"
+                ? seasonChip(group.key as Tire["season"]).bg
+                : undefined;
+            const badgeFg =
+              groupBy === "season"
+                ? seasonChip(group.key as Tire["season"]).fg
+                : undefined;
             return (
-              <View style={styles.group} testID={`group-rim-${group.rim}`}>
+              <View style={styles.group} testID={`group-${groupBy}-${group.key}`}>
                 <Pressable
                   style={styles.groupHeader}
                   onPress={() =>
-                    setExpanded((e) => ({ ...e, [group.rim]: !isOpen }))
+                    setExpanded((e) => ({ ...e, [group.key]: !isOpen }))
                   }
-                  testID={`group-toggle-${group.rim}`}
+                  testID={`group-toggle-${groupBy}-${group.key}`}
                 >
-                  <View style={styles.groupBadge}>
-                    <Text style={styles.groupBadgeText}>{group.rim}"</Text>
+                  <View
+                    style={[
+                      styles.groupBadge,
+                      badgeBg ? { backgroundColor: badgeBg } : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.groupBadgeText,
+                        badgeFg ? { color: badgeFg } : null,
+                      ]}
+                    >
+                      {badgeText}
+                    </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.groupTitle}>Cerchio {group.rim}"</Text>
+                    <Text style={styles.groupTitle}>{groupTitleOf(group.key)}</Text>
                     <Text style={styles.groupSub}>
                       {group.items.length}{" "}
                       {group.items.length === 1 ? "voce" : "voci"} • {totalQty}{" "}
@@ -322,6 +423,7 @@ function AddTireModal({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { isTablet } = useResponsive();
+  const { operator } = useOperator();
 
   const metaQ = useQuery({ queryKey: ["meta"], queryFn: api.getMeta });
   const brands = metaQ.data?.brands ?? [];
@@ -361,7 +463,13 @@ function AddTireModal({
     if (!brand) return setError("Seleziona il marchio");
     if (!season) return setError("Seleziona la stagione");
     if (!q || q < 1) return setError("La quantità deve essere almeno 1");
-    createMut.mutate({ size: size.trim(), brand, season, quantity: q });
+    createMut.mutate({
+      size: size.trim(),
+      brand,
+      season,
+      quantity: q,
+      operator: operator ?? null,
+    });
   }
 
   return (
@@ -395,11 +503,12 @@ function AddTireModal({
             <Field label="Sigla / Misura">
               <TextInput
                 value={size}
-                onChangeText={setSize}
-                placeholder="es. 185/60 R15 91V"
+                onChangeText={(v) => setSize(formatSize(v))}
+                placeholder="es. 165 55 14 → 165/55 R14"
                 placeholderTextColor={colors.muted}
                 style={styles.input}
                 autoCapitalize="characters"
+                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
                 testID="input-size"
               />
             </Field>
@@ -596,6 +705,44 @@ const useStyles = makeStyles((colors) => ({
   searchInput: { flex: 1, fontSize: 15, color: colors.onSurface, outlineStyle: "none" as any },
   chipRow: { marginTop: 2 },
   chipRowContent: { gap: 8, paddingRight: spacing.md },
+
+  groupByRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  groupByLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted,
+    textTransform: "uppercase",
+  },
+  segment: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    padding: 3,
+    flex: 1,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  segmentBtnActive: {
+    backgroundColor: colors.brandPrimary,
+  },
+  segmentBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.onSurfaceSecondary,
+  },
   chip: {
     flexShrink: 0,
     height: 36,

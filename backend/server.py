@@ -43,8 +43,14 @@ def extract_rim(size: str) -> Optional[int]:
         return None
 
 
-def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+def utcnow_iso() -> str:
+    # Explicit UTC with 'Z' suffix so clients parse it correctly regardless of
+    # their local timezone.
+    return (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
 
 
 class Tire(BaseModel):
@@ -54,8 +60,8 @@ class Tire(BaseModel):
     season: Season
     rim: int
     quantity: int = 0
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    created_at: str = Field(default_factory=utcnow_iso)
+    updated_at: str = Field(default_factory=utcnow_iso)
 
 
 class TireCreate(BaseModel):
@@ -63,6 +69,7 @@ class TireCreate(BaseModel):
     brand: str
     season: Season
     quantity: int = Field(ge=1)
+    operator: Optional[str] = None
 
     @field_validator("size")
     @classmethod
@@ -81,7 +88,8 @@ class TireCreate(BaseModel):
 
 
 class QuantityUpdate(BaseModel):
-    delta: int  # +1, -1, +5, -5 etc.
+    delta: int
+    operator: Optional[str] = None
     reason: Optional[str] = None
 
 
@@ -95,10 +103,11 @@ class Movement(BaseModel):
     type: Literal["create", "add", "remove", "delete"]
     delta: int
     quantity_after: int
-    timestamp: datetime = Field(default_factory=utcnow)
+    operator: Optional[str] = None
+    timestamp: str = Field(default_factory=utcnow_iso)
 
 
-async def log_movement(tire: dict, mtype: str, delta: int, qty_after: int):
+async def log_movement(tire: dict, mtype: str, delta: int, qty_after: int, operator: Optional[str]):
     mv = Movement(
         tire_id=tire["id"],
         size=tire["size"],
@@ -108,6 +117,7 @@ async def log_movement(tire: dict, mtype: str, delta: int, qty_after: int):
         type=mtype,  # type: ignore
         delta=delta,
         quantity_after=qty_after,
+        operator=(operator or None),
     )
     await db.movements.insert_one(mv.model_dump())
 
@@ -138,13 +148,14 @@ async def create_tire(payload: TireCreate):
     )
     if existing:
         new_qty = int(existing["quantity"]) + payload.quantity
+        now = utcnow_iso()
         await db.tires.update_one(
             {"id": existing["id"]},
-            {"$set": {"quantity": new_qty, "updated_at": utcnow()}},
+            {"$set": {"quantity": new_qty, "updated_at": now}},
         )
         existing["quantity"] = new_qty
-        existing["updated_at"] = utcnow()
-        await log_movement(existing, "add", payload.quantity, new_qty)
+        existing["updated_at"] = now
+        await log_movement(existing, "add", payload.quantity, new_qty, payload.operator)
         return Tire(**existing)
 
     tire = Tire(
@@ -155,7 +166,7 @@ async def create_tire(payload: TireCreate):
         quantity=payload.quantity,
     )
     await db.tires.insert_one(tire.model_dump())
-    await log_movement(tire.model_dump(), "create", payload.quantity, payload.quantity)
+    await log_movement(tire.model_dump(), "create", payload.quantity, payload.quantity, payload.operator)
     return tire
 
 
@@ -167,24 +178,25 @@ async def update_quantity(tire_id: str, payload: QuantityUpdate):
     new_qty = int(tire["quantity"]) + payload.delta
     if new_qty < 0:
         raise HTTPException(status_code=400, detail="Quantità non può essere negativa")
+    now = utcnow_iso()
     await db.tires.update_one(
         {"id": tire_id},
-        {"$set": {"quantity": new_qty, "updated_at": utcnow()}},
+        {"$set": {"quantity": new_qty, "updated_at": now}},
     )
     tire["quantity"] = new_qty
-    tire["updated_at"] = utcnow()
+    tire["updated_at"] = now
     mtype = "add" if payload.delta > 0 else "remove"
-    await log_movement(tire, mtype, payload.delta, new_qty)
+    await log_movement(tire, mtype, payload.delta, new_qty, payload.operator)
     return Tire(**tire)
 
 
 @api_router.delete("/tires/{tire_id}")
-async def delete_tire(tire_id: str):
+async def delete_tire(tire_id: str, operator: Optional[str] = None):
     tire = await db.tires.find_one({"id": tire_id}, {"_id": 0})
     if not tire:
         raise HTTPException(status_code=404, detail="Pneumatico non trovato")
     await db.tires.delete_one({"id": tire_id})
-    await log_movement(tire, "delete", -int(tire["quantity"]), 0)
+    await log_movement(tire, "delete", -int(tire["quantity"]), 0, operator)
     return {"ok": True}
 
 
