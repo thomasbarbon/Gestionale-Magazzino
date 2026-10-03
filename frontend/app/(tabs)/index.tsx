@@ -34,8 +34,16 @@ const movementIcon: Record<Movement["type"], string> = {
 function formatTime(iso: string) {
   try {
     const d = new Date(iso);
-    const dd = d.toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
-    const hh = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    const dd = d.toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "short",
+      timeZone: "Europe/Rome",
+    });
+    const hh = d.toLocaleTimeString("it-IT", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Rome",
+    });
     return `${dd} • ${hh}`;
   } catch {
     return iso;
