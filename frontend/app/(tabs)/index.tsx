@@ -48,7 +48,7 @@ export default function Dashboard() {
   const styles = useStyles();
   const { colors } = useTheme();
   const { isTablet } = useResponsive();
-  const { operator, openEditor } = useOperator();
+  const { operator } = useOperator();
 
   const tiresQ = useQuery({
     queryKey: ["tires"],
@@ -80,7 +80,7 @@ export default function Dashboard() {
         </View>
       </View>
 
-      <Pressable style={styles.operatorBar} onPress={openEditor} testID="operator-bar">
+      <View style={styles.operatorBar} testID="operator-bar">
         <Icon name="person-circle" size={22} color={colors.brandPrimary} />
         <View style={{ flex: 1 }}>
           <Text style={styles.operatorLabel}>Operatore attivo</Text>
@@ -88,11 +88,7 @@ export default function Dashboard() {
             {operator}
           </Text>
         </View>
-        <View style={styles.operatorEditBtn}>
-          <Icon name="pencil" size={14} color={colors.onBrandPrimary} />
-          <Text style={styles.operatorEditText}>Cambia</Text>
-        </View>
-      </Pressable>
+      </View>
 
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing["2xl"] }}
