@@ -132,7 +132,7 @@ function WelcomeScreen({ onDone }: { onDone: (name: string) => Promise<void> }) 
         <View style={styles.welcomeIcon}>
           <Icon name="person-circle-outline" size={56} color={colors.onBrandPrimary} />
         </View>
-        <Text style={styles.welcomeTitle}>Benvenuto in GommaGest</Text>
+        <Text style={styles.welcomeTitle}>Benvenuto in Gestionale Gomme</Text>
         <Text style={styles.welcomeSub}>
           Prima di iniziare, inserisci il tuo nome. Verrà registrato nella cronologia dei
           movimenti per sapere chi effettua le modifiche al magazzino.

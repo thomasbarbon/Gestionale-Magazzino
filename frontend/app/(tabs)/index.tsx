@@ -76,7 +76,7 @@ export default function Dashboard() {
       <View style={styles.header}>
         <View>
           <Text style={styles.titleSmall}>Autofficina</Text>
-          <Text style={styles.title}>GommaGest</Text>
+          <Text style={styles.title}>Gestionale Gomme</Text>
         </View>
         <Pressable
           style={styles.magazzinoBtn}

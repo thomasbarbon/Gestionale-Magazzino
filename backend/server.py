@@ -124,7 +124,7 @@ async def log_movement(tire: dict, mtype: str, delta: int, qty_after: int, opera
 
 @api_router.get("/")
 async def root():
-    return {"message": "GommaGest API"}
+    return {"message": "Gestionale Gomme API"}
 
 
 @api_router.get("/brands")
