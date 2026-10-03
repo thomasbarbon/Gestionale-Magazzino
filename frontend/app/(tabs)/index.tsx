@@ -78,14 +78,6 @@ export default function Dashboard() {
           <Text style={styles.titleSmall}>Autofficina</Text>
           <Text style={styles.title}>Gestionale Gomme</Text>
         </View>
-        <Pressable
-          style={styles.magazzinoBtn}
-          onPress={() => router.push("/(tabs)/magazzino")}
-          testID="dashboard-open-magazzino"
-        >
-          <Icon name="file-tray-stacked" size={18} color={colors.onBrandPrimary} />
-          <Text style={styles.magazzinoBtnText}>Apri Magazzino</Text>
-        </Pressable>
       </View>
 
       <Pressable style={styles.operatorBar} onPress={openEditor} testID="operator-bar">
