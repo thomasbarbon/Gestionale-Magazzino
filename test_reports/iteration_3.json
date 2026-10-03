@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only persistence verification for the operator-name fix (dual storage: secureSet + setItem under 'gommagest.operator.name'). All 8 requested scenarios passed on the live Expo web preview (mobile viewport 390x900). Fresh session shows WelcomeScreen; short name <2 chars triggers inline error; valid 'Marco Rossi' submit lands on Dashboard with operator-name visible; full page reload preserves auto-login (no Welcome re-shown); a new tab in same origin context auto-logs in; +/- quantity movements via Magazzino are correctly tagged operator='Marco Rossi' in /api/movements; no 'Cambia' button present on Dashboard; grep confirms both storage.secureSet AND storage.setItem are called in /app/frontend/src/operator-context.tsx:53-54. On web both surfaces land in AsyncStorage/IndexedDB-backed localStorage (per index.web.ts fallthrough), observed key 'gommagest.operator.name' = \"\\\"Marco Rossi\\\"\". No deprecated expo packages or React Native issues detected relevant to this change.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "operator-context.tsx: writeOperator uses Promise.all over secureSet + setItem and readOperator falls back correctly - behaviour verified end-to-end.",
+    "On web, SecureStore does not exist so index.web.ts routes secureSet through AsyncStorage; the dual-write is still safe (idempotent on same key) and native builds will persist via Keychain/EncryptedSharedPreferences.",
+    "WelcomeScreen gating in OperatorProvider renders only when operator is null after loading - verified no flash of welcome on reload."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "seed_data_creation": "No seed data created. Produced 2 new /api/movements rows (add + remove) on an existing 15\" tire tagged with operator='Marco Rossi'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Operator persists on web via localStorage key 'gommagest.operator.name'. To fully clear state before testing, run: localStorage.clear(); indexedDB-level clear not required (AsyncStorage web shim ends up in localStorage for this key). The 'Nuove gomme' modal uses custom dropdowns (not <select>) - use data-testid='brand-select'/'season-select' plus a scoped text selector inside the dropdown panel, since brand names also appear in the list cards behind the modal (plain text=Bridgestone will hit the card not the option).",
+  "rca_of_issue": "Original bug: operator name was lost after full app close/reopen because it was written to only one storage surface. Fix: operator-context.tsx now writes with Promise.all([storage.secureSet, storage.setItem]) and reads from whichever surface returns a value. Verified via page.reload() and new-page-same-context flows - operator persists and Welcome does not reappear."
+}

@@ -8,7 +8,6 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   Text,
   TextInput,
@@ -26,8 +25,6 @@ type OperatorCtx = {
   operator: string | null;
   loading: boolean;
   setOperator: (name: string) => Promise<void>;
-  clearOperator: () => Promise<void>;
-  openEditor: () => void;
 };
 
 const Ctx = createContext<OperatorCtx | null>(null);
@@ -38,17 +35,34 @@ export function useOperator(): OperatorCtx {
   return v;
 }
 
+// Persist the operator name in BOTH the secure store (Keychain on iOS /
+// EncryptedSharedPreferences on Android, persists across app relaunches and
+// re-installs) and AsyncStorage (fallback / web). Reading tries both so a
+// missing value in one surface is recovered from the other.
+async function readOperator(): Promise<string | null> {
+  const [secure, async] = await Promise.all([
+    storage.secureGet<string>(OPERATOR_KEY, ""),
+    storage.getItem<string>(OPERATOR_KEY, ""),
+  ]);
+  const name = (secure && secure.trim()) || (async && async.trim()) || "";
+  return name ? name : null;
+}
+
+async function writeOperator(name: string) {
+  await Promise.all([
+    storage.secureSet(OPERATOR_KEY, name),
+    storage.setItem(OPERATOR_KEY, name),
+  ]);
+}
+
 export function OperatorProvider({ children }: { children: React.ReactNode }) {
   const [operator, setOp] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const saved = await storage.getItem<string>(OPERATOR_KEY, "");
-      if (saved && typeof saved === "string" && saved.trim().length > 0) {
-        setOp(saved);
-      }
+      const saved = await readOperator();
+      if (saved) setOp(saved);
       setLoading(false);
     })();
   }, []);
@@ -56,34 +70,26 @@ export function OperatorProvider({ children }: { children: React.ReactNode }) {
   const setOperator = useCallback(async (name: string) => {
     const clean = name.trim();
     if (!clean) return;
-    await storage.setItem(OPERATOR_KEY, clean);
-    setOp(clean);
+    await writeOperator(clean);
+    // Re-read to confirm the write actually landed before switching screens.
+    const confirmed = (await readOperator()) ?? clean;
+    setOp(confirmed);
   }, []);
-
-  const clearOperator = useCallback(async () => {
-    await storage.removeItem(OPERATOR_KEY);
-    setOp(null);
-  }, []);
-
-  const openEditor = useCallback(() => setEditorOpen(true), []);
 
   const value = useMemo<OperatorCtx>(
-    () => ({ operator, loading, setOperator, clearOperator, openEditor }),
-    [operator, loading, setOperator, clearOperator, openEditor],
+    () => ({ operator, loading, setOperator }),
+    [operator, loading, setOperator],
   );
 
   return (
     <Ctx.Provider value={value}>
-      {loading ? <LoadingScreen /> : operator ? children : <WelcomeScreen onDone={setOperator} />}
-      <ChangeOperatorModal
-        visible={editorOpen && !!operator}
-        current={operator ?? ""}
-        onClose={() => setEditorOpen(false)}
-        onSave={async (name) => {
-          await setOperator(name);
-          setEditorOpen(false);
-        }}
-      />
+      {loading ? (
+        <LoadingScreen />
+      ) : operator ? (
+        children
+      ) : (
+        <WelcomeScreen onDone={setOperator} />
+      )}
     </Ctx.Provider>
   );
 }
@@ -172,84 +178,10 @@ function WelcomeScreen({ onDone }: { onDone: (name: string) => Promise<void> }) 
         </Pressable>
         <Text style={styles.helperText}>
           Il nome verrà memorizzato su questo dispositivo e usato automaticamente ai prossimi
-          avvii. Puoi cambiarlo in qualsiasi momento dalla Dashboard.
+          avvii dell'app.
         </Text>
       </View>
     </View>
-  );
-}
-
-function ChangeOperatorModal({
-  visible,
-  current,
-  onClose,
-  onSave,
-}: {
-  visible: boolean;
-  current: string;
-  onClose: () => void;
-  onSave: (name: string) => Promise<void>;
-}) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const [name, setName] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (visible) {
-      setName(current);
-      setError(null);
-    }
-  }, [visible, current]);
-
-  async function submit() {
-    if (name.trim().length < 2) {
-      setError("Nome troppo corto");
-      return;
-    }
-    await onSave(name);
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View
-          style={[
-            styles.modalCard,
-            { marginBottom: Math.max(insets.bottom, spacing.lg) },
-          ]}
-        >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Cambia operatore</Text>
-            <Pressable onPress={onClose} testID="close-change-operator" hitSlop={8}>
-              <Icon name="close" size={22} color={colors.onSurface} />
-            </Pressable>
-          </View>
-          <View style={{ padding: spacing.lg, gap: spacing.md }}>
-            <Text style={styles.fieldLabel}>Nome operatore</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Nome e cognome"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              autoCapitalize="words"
-              testID="change-operator-input"
-            />
-            {error ? (
-              <Text style={styles.errorText} testID="change-operator-error">
-                {error}
-              </Text>
-            ) : null}
-            <Pressable style={styles.primaryBtn} onPress={submit} testID="change-operator-save">
-              <Icon name="save-outline" size={18} color={colors.onBrandPrimary} />
-              <Text style={styles.primaryBtnText}>Salva</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -316,24 +248,4 @@ const useStyles = makeStyles((colors) => ({
     textAlign: "center",
     marginTop: spacing.md,
   },
-
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    marginHorizontal: spacing.lg,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTitle: { fontSize: 17, fontWeight: "800", color: colors.onSurface },
 }));
